@@ -1,5 +1,7 @@
 # Other
 /games
+.idea
+failed_game_downloads.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
