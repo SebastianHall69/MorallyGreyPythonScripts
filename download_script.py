@@ -83,8 +83,8 @@ def create_download_directory(directory):
         os.makedirs(directory)
 
 
-def log_failed_game_download(game_url):
-    with open('failed_game_downloads.txt', 'a+') as file:
+def log_failed_game_download(game_url, console):
+    with open(f"failed_game_downloads_{console}.txt", 'a+') as file:
         file.write(f"{game_url}\n")
 
 
@@ -118,7 +118,7 @@ def remove_blocked_game_ids(game_ids, blocked_game_ids):
     return [x for x in game_ids if x not in blocked_game_ids]
 
 
-def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download):
+def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download, console):
     game_id_regex = r'var allMedia = \[{"ID":(\d+),'
     game_ids = []
 
@@ -135,7 +135,7 @@ def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download):
         except Exception as err:
             print(f"FAILURE TO FIND GAME ID FOR game {current_game_num}/{len(game_urls)}, url: {game_url}")
             print(f"ERROR: {err}")
-            log_failed_game_download(game_url)
+            log_failed_game_download(game_url, console)
         finally:
             current_game_num += 1
 
@@ -148,7 +148,7 @@ def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download):
     return game_ids
 
 
-def download_game(game_id, directory):
+def download_game(game_id, directory, console):
     download_url = f"https://download3.vimm.net/download/?mediaId={game_id}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
@@ -173,16 +173,16 @@ def download_game(game_id, directory):
         warnings.warn(f"Failed to download game with game id {game_id}, url: {game_id_to_url.get(game_id)}")
         warnings.warn(f"Status code: {response.status_code}")
         warnings.warn(f"Reason: {response.reason}")
-        log_failed_game_download(game_id_to_url[game_id])
+        log_failed_game_download(game_id_to_url[game_id], console)
     else:
         save_file(response, directory)
         print('Finished\n')
 
 
-def download_games(game_ids, directory):
+def download_games(game_ids, directory, console):
     for game_id in game_ids:
         print(f"Downloading game id {game_id}")
-        download_game(game_id, directory)
+        download_game(game_id, directory, console)
 
 
 @click.command()
@@ -208,11 +208,11 @@ def main(start, end, directory, first_game_id, console):
 
     # Find game ids
     print('Retrieving game ids...')
-    game_ids = get_game_ids(game_urls, blocked_game_ids, first_game_id)
+    game_ids = get_game_ids(game_urls, blocked_game_ids, first_game_id, console)
 
     # Download games
     print(f"Beginning download on {len(game_ids)} games")
-    download_games(game_ids, game_directory)
+    download_games(game_ids, game_directory, console)
 
     # We are done :)
     print("Finished task")
