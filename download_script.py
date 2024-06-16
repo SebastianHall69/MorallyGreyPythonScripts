@@ -58,6 +58,28 @@ def get_default_directory(console):
     return f"games/{console}"
 
 
+def get_base_url(console):
+    url_2 = 'https://download2.vimm.net'
+    url_3 = 'https://download3.vimm.net'
+    url_2_set = [Console.PLAYSTATION_2, Console.XBOX]
+    url_3_set = [
+        Console.NINTENDO_64,
+        Console.PLAYSTATION_1,
+        Console.GAMECUBE,
+        Console.PLAYSTATION_3,
+        Console.NINTENDO,
+        Console.SUPER_NINTENDO
+    ]
+
+    if console in url_2_set:
+        return url_2
+    elif console in url_3_set:
+        return url_3
+    else:
+        print(f"No verified download base URL for {console}. Reverting to a default")
+        return url_3
+
+
 def save_7z_file(response, directory):
     with SevenZipFile(io.BytesIO(response.content), mode='r') as z:
         z.extractall(directory)
@@ -149,9 +171,9 @@ def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download, console
 
 
 def download_game(game_id, directory, console):
-    download_url = f"https://download3.vimm.net/download/?mediaId={game_id}"
+    download_url = f"{get_base_url(console)}/download/?mediaId={game_id}"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0',
         'Accept': 'text/htmlapplication/xhtml+xmlapplication/xml;q=0.9image/avifimage/webp*/*;q=0.8',
         'Accept-Language': 'en-USen;q=0.5',
         'Accept-Encoding': 'gzip deflate br',
@@ -190,7 +212,8 @@ def download_games(game_ids, directory, console):
 @click.option('-e', '--end', default='Z', help='Letter of the alphabet to end on')
 @click.option('-d', '--directory', default='games', help='Directory to store games in')
 @click.option('-g', '--first-game-id', help='First game id to download')
-@click.option('-c', '--console', default='n64', required=True, help='Console to download game for', type=click.Choice(['xbox', 'ps1', 'ps2', 'ps3', 'nes', 'snes', 'n64', 'gc']))
+@click.option('-c', '--console', default='n64', required=True, help='Console to download game for',
+              type=click.Choice(['xbox', 'ps1', 'ps2', 'ps3', 'nes', 'snes', 'n64', 'gc']))
 def main(start, end, directory, first_game_id, console):
     # Configuration
     first_letter = start
