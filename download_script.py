@@ -213,14 +213,16 @@ def download_game(game_id, directory, console):
 
 
 def get_current_time():
-    return datetime.now().strftime('%b %d - %I:%M:%S %p')
+    return datetime.now().strftime('%b %d %I:%M:%S %p')
 
 
 def download_games(game_ids, directory, console):
-    print(f"Beginning download on {len(game_ids)} games")
+    print(f"Beginning download on {len(game_ids)} games\n")
+    current_game_num = 1
     for game_id in game_ids:
-        print(f"Downloading game id {game_id} on {get_current_time()}")
+        print(f"({current_game_num}/{len(game_ids)}) - game id: {game_id} - time: {get_current_time()}")
         download_game(game_id, directory, console)
+        current_game_num += 1
 
 
 def cache_game_ids(game_ids, console):
