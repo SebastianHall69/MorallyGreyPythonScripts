@@ -29,7 +29,7 @@ class Console(Enum):
         return self.value
 
 
-class FileType(Enum):
+class MimeType(Enum):
     ZIP = 'application/zip'
     SEVEN_ZIP = 'application/x-7z-compressed'
 
@@ -92,13 +92,13 @@ def save_zip_file(response, directory):
 
 
 def save_file(response, directory):
-    file_type = magic.from_buffer(response.content, mime=True)
-    if file_type == FileType.ZIP.value:
+    mime_type = magic.from_buffer(response.content, mime=True)
+    if mime_type == MimeType.ZIP.value:
         save_zip_file(response, directory)
-    elif file_type == FileType.SEVEN_ZIP.value:
+    elif mime_type == MimeType.SEVEN_ZIP.value:
         save_7z_file(response, directory)
     else:
-        raise Exception(f"Unrecognized file type: {file_type}")
+        raise Exception(f"Unrecognized file type: {mime_type}")
 
 
 def create_download_directory(directory):
