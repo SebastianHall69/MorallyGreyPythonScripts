@@ -3,7 +3,6 @@ import os.path
 
 import click
 import json
-import magic
 import requests
 import re
 import time
@@ -82,6 +81,16 @@ def get_base_url(console):
         return url_3
 
 
+def get_file_name_from_response(response):
+    disposition = response.headers.get('Content-Disposition')
+    file_name = disposition.split('="')[-1].split('.')[0].strip()
+    return file_name
+
+
+def get_mime_type_from_response(response):
+    return response.headers.get('Content-Type')
+
+
 def save_7z_file(response, directory):
     with SevenZipFile(io.BytesIO(response.content), mode='r') as z:
         z.extractall(directory)
@@ -92,17 +101,21 @@ def save_zip_file(response, directory):
         z.extractall(directory)
 
 
-def save_file(response, directory):
-    mime_type = magic.from_buffer(response.content, mime=True)
+def save_file(response, base_directory):
+    mime_type = get_mime_type_from_response(response)
+    file_name = get_file_name_from_response(response)
+    save_directory = os.path.join(base_directory, file_name)
+    create_directory(save_directory)
+
     if mime_type == MimeType.ZIP.value:
-        save_zip_file(response, directory)
+        save_zip_file(response, save_directory)
     elif mime_type == MimeType.SEVEN_ZIP.value:
-        save_7z_file(response, directory)
+        save_7z_file(response, save_directory)
     else:
         raise Exception(f"Unrecognized file type: {mime_type}")
 
 
-def create_download_directory(directory):
+def create_directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -220,7 +233,7 @@ def get_cached_game_ids(console):
     try:
         with open(f"cached_game_ids_{console}.json", 'r') as file:
             return json.load(file)
-    except FileNotFoundError as err:
+    except FileNotFoundError:
         return None
 
 
@@ -257,13 +270,13 @@ def main(start, end, directory, first_game_id, console):
     first_letter = start
     last_letter = end
     console = get_console_from_cli_option(console)
-    game_directory = get_default_directory(console) if directory is None else directory
+    download_directory = get_default_directory(console) if directory is None else directory
     blocked_game_ids = ['29']
 
     # Download games
-    create_download_directory(game_directory)
+    create_directory(download_directory)
     game_ids = get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id)
-    download_games(game_ids, game_directory, console)
+    download_games(game_ids, download_directory, console)
 
     # We are done :)
     print('Finished task')
