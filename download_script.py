@@ -2,6 +2,7 @@ import io
 import os.path
 
 import click
+import json
 import magic
 import requests
 import re
@@ -112,7 +113,7 @@ def log_failed_game_download(game_url, console):
 
 
 def get_game_urls(console, first_letter, last_letter):
-    print('Retrieving game urls...')
+    print(f"Retrieving game urls for {console} games...")
 
     game_urls = []
     page_urls = []
@@ -141,7 +142,9 @@ def remove_blocked_game_ids(game_ids, blocked_game_ids):
     return [x for x in game_ids if x not in blocked_game_ids]
 
 
-def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download, console):
+def get_game_ids_from_urls(game_urls, console):
+    print('Retrieving game ids from site...')
+
     game_id_regex = r'var allMedia = \[{"ID":(\d+),'
     game_ids = []
 
@@ -161,12 +164,6 @@ def get_game_ids(game_urls, blocked_game_ids, first_game_id_to_download, console
             log_failed_game_download(game_url, console)
         finally:
             current_game_num += 1
-
-    # Trim set of game ids
-    if first_game_id_to_download is not None:
-        index = game_ids.index(first_game_id_to_download)
-        game_ids = game_ids[index:]
-    game_ids = remove_blocked_game_ids(game_ids, blocked_game_ids)
 
     return game_ids
 
@@ -207,9 +204,45 @@ def get_current_time():
 
 
 def download_games(game_ids, directory, console):
+    print(f"Beginning download on {len(game_ids)} games")
     for game_id in game_ids:
         print(f"Downloading game id {game_id} on {get_current_time()}")
         download_game(game_id, directory, console)
+
+
+def cache_game_ids(game_ids, console):
+    json_data = json.dumps(game_ids)
+    with open(f"cached_game_ids_{console}.json", 'w') as file:
+        file.write(json_data)
+
+
+def get_cached_game_ids(console):
+    try:
+        with open(f"cached_game_ids_{console}.json", 'r') as file:
+            return json.load(file)
+    except FileNotFoundError as err:
+        return None
+
+
+def filter_game_ids(game_ids, blocked_game_ids, first_game_id):
+    if first_game_id is not None:
+        index = game_ids.index(first_game_id)
+        game_ids = game_ids[index:]
+
+    return remove_blocked_game_ids(game_ids, blocked_game_ids)
+
+
+def get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id):
+    if get_cached_game_ids(console) is None:
+        print(f"No cached game ids found for {console}")
+        game_urls = get_game_urls(console, first_letter, last_letter)
+        game_ids = get_game_ids_from_urls(game_urls, console)
+        cache_game_ids(game_ids, console)
+    else:
+        print(f"Using cached game ids for {console}")
+        game_ids = get_cached_game_ids(console)
+
+    return filter_game_ids(game_ids, blocked_game_ids, first_game_id)
 
 
 @click.command()
@@ -227,23 +260,13 @@ def main(start, end, directory, first_game_id, console):
     game_directory = get_default_directory(console) if directory is None else directory
     blocked_game_ids = ['29']
 
-    # Create game directory
-    create_download_directory(game_directory)
-
-    # Find game urls
-    print(f"Querying game id's for {console} games...")
-    game_urls = get_game_urls(console, first_letter, last_letter)
-
-    # Find game ids
-    print('Retrieving game ids...')
-    game_ids = get_game_ids(game_urls, blocked_game_ids, first_game_id, console)
-
     # Download games
-    print(f"Beginning download on {len(game_ids)} games")
+    create_download_directory(game_directory)
+    game_ids = get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id)
     download_games(game_ids, game_directory, console)
 
     # We are done :)
-    print("Finished task")
+    print('Finished task')
 
 
 if __name__ == "__main__":
