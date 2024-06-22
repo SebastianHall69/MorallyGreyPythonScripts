@@ -248,7 +248,7 @@ def get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_gam
 @click.command()
 @click.option('-s', '--start', default='A', help='Letter of the alphabet to start on', )
 @click.option('-e', '--end', default='Z', help='Letter of the alphabet to end on')
-@click.option('-d', '--directory', default='games', help='Directory to store games in')
+@click.option('-d', '--directory', help='Directory to store games in')
 @click.option('-g', '--first-game-id', help='First game id to download')
 @click.option('-c', '--console', required=True, help='Console to download game for',
               type=click.Choice(['xbox', 'ps1', 'ps2', 'ps3', 'nes', 'snes', 'n64', 'gc']))
