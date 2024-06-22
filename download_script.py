@@ -9,6 +9,7 @@ import time
 import warnings
 import zipfile
 
+from datetime import datetime
 from enum import Enum
 from py7zr import SevenZipFile
 
@@ -201,9 +202,13 @@ def download_game(game_id, directory, console):
         print('Finished\n')
 
 
+def get_current_time():
+    return datetime.now().strftime('%b %d - %I:%M:%S %p')
+
+
 def download_games(game_ids, directory, console):
     for game_id in game_ids:
-        print(f"Downloading game id {game_id}")
+        print(f"Downloading game id {game_id} on {get_current_time()}")
         download_game(game_id, directory, console)
 
 
@@ -212,7 +217,7 @@ def download_games(game_ids, directory, console):
 @click.option('-e', '--end', default='Z', help='Letter of the alphabet to end on')
 @click.option('-d', '--directory', default='games', help='Directory to store games in')
 @click.option('-g', '--first-game-id', help='First game id to download')
-@click.option('-c', '--console', default='n64', required=True, help='Console to download game for',
+@click.option('-c', '--console', required=True, help='Console to download game for',
               type=click.Choice(['xbox', 'ps1', 'ps2', 'ps3', 'nes', 'snes', 'n64', 'gc']))
 def main(start, end, directory, first_game_id, console):
     # Configuration
