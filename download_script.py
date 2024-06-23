@@ -220,7 +220,7 @@ def download_game(game_id, directory, console):
             warnings.warn(f"Failed to download game with game id {game_id}, url: {game_id_to_url.get(game_id)}")
             warnings.warn(f"Status code: {response.status_code}")
             warnings.warn(f"Reason: {response.reason}")
-            log_failed_game_download(game_id_to_url[game_id], console)
+            log_failed_game_download(game_id_to_url.get(game_id), console)
         else:
             headers = response.headers
             content = b''
@@ -246,15 +246,15 @@ def download_games(game_ids, directory, console):
         current_game_num += 1
 
 
-def cache_game_ids(game_ids, console):
-    json_data = json.dumps(game_ids)
-    with open(f"cached_game_ids_{console}.json", 'w') as file:
+def cache_object(data, directory):
+    json_data = json.dumps(data)
+    with open(directory, 'w') as file:
         file.write(json_data)
 
 
-def get_cached_game_ids(console):
+def load_cached_object(directory):
     try:
-        with open(f"cached_game_ids_{console}.json", 'r') as file:
+        with open(directory, 'r') as file:
             return json.load(file)
     except FileNotFoundError:
         return None
@@ -268,15 +268,28 @@ def filter_game_ids(game_ids, blocked_game_ids, first_game_id):
     return remove_blocked_game_ids(game_ids, blocked_game_ids)
 
 
+def get_game_id_path(console):
+    return f"cached_game_ids_{console}.json"
+
+
+def get_game_id_to_url_path(console):
+    return f"cached_game_id_to_url_{console}.json"
+
+
 def get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id):
-    if get_cached_game_ids(console) is None:
+    global game_id_to_url
+    game_id_path = get_game_id_path(console)
+
+    if load_cached_object(game_id_path) is None:
         print(f"No cached game ids found for {console}")
         game_urls = get_game_urls(console, first_letter, last_letter)
         game_ids = get_game_ids_from_urls(game_urls, console)
-        cache_game_ids(game_ids, console)
+        cache_object(game_ids, game_id_path)
+        cache_object(game_id_to_url, get_game_id_to_url_path(console))
     else:
         print(f"Using cached game ids for {console}")
-        game_ids = get_cached_game_ids(console)
+        game_ids = load_cached_object(game_id_path)
+        game_id_to_url = load_cached_object(get_game_id_to_url_path(console))
 
     return filter_game_ids(game_ids, blocked_game_ids, first_game_id)
 
