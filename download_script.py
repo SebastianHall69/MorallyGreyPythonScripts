@@ -12,6 +12,7 @@ import zipfile
 from datetime import datetime
 from enum import Enum
 from py7zr import SevenZipFile
+from tqdm import tqdm
 
 
 # Enums
@@ -32,6 +33,15 @@ class Console(Enum):
 class MimeType(Enum):
     ZIP = 'application/zip'
     SEVEN_ZIP = 'application/x-7z-compressed'
+
+    def __str__(self):
+        return self.value
+
+
+class Header(Enum):
+    CONTENT_DISPOSITION = 'Content-Disposition'
+    CONTENT_TYPE = 'Content-Type'
+    CONTENT_LENGTH = 'Content-Length'
 
     def __str__(self):
         return self.value
@@ -81,36 +91,40 @@ def get_base_url(console):
         return url_3
 
 
-def get_file_name_from_response(response):
-    disposition = response.headers.get('Content-Disposition')
-    file_name = disposition.split('="')[-1].split('.')[0].strip()
+def get_file_name(headers):
+    disposition = headers.get(Header.CONTENT_DISPOSITION.value)
+    file_name = ''.join(disposition.split('="')[-1].split('.')[:-1]).strip()
     return file_name
 
 
-def get_mime_type_from_response(response):
-    return response.headers.get('Content-Type')
+def get_mime_type(headers):
+    return headers.get(Header.CONTENT_TYPE.value)
 
 
-def save_7z_file(response, directory):
-    with SevenZipFile(io.BytesIO(response.content), mode='r') as z:
+def get_content_length(headers):
+    return int(headers.get(Header.CONTENT_LENGTH.value, 0))
+
+
+def save_7z_file(content, directory):
+    with SevenZipFile(io.BytesIO(content), mode='r') as z:
         z.extractall(directory)
 
 
-def save_zip_file(response, directory):
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+def save_zip_file(content, directory):
+    with zipfile.ZipFile(io.BytesIO(content)) as z:
         z.extractall(directory)
 
 
-def save_file(response, base_directory):
-    mime_type = get_mime_type_from_response(response)
-    file_name = get_file_name_from_response(response)
+def save_file(headers, content, base_directory):
+    mime_type = get_mime_type(headers)
+    file_name = get_file_name(headers)
     save_directory = os.path.join(base_directory, file_name)
     create_directory(save_directory)
 
     if mime_type == MimeType.ZIP.value:
-        save_zip_file(response, save_directory)
+        save_zip_file(content, save_directory)
     elif mime_type == MimeType.SEVEN_ZIP.value:
-        save_7z_file(response, save_directory)
+        save_7z_file(content, save_directory)
     else:
         raise Exception(f"Unrecognized file type: {mime_type}")
 
@@ -183,7 +197,7 @@ def get_game_ids_from_urls(game_urls, console):
 
 def download_game(game_id, directory, console):
     download_url = f"{get_base_url(console)}/download/?mediaId={game_id}"
-    headers = {
+    request_headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0',
         'Accept': 'text/htmlapplication/xhtml+xmlapplication/xml;q=0.9image/avifimage/webp*/*;q=0.8',
         'Accept-Language': 'en-USen;q=0.5',
@@ -201,15 +215,22 @@ def download_game(game_id, directory, console):
     }
 
     time.sleep(5)
-    response = requests.get(download_url, headers=headers, stream=True)
-    if not response.ok:
-        warnings.warn(f"Failed to download game with game id {game_id}, url: {game_id_to_url.get(game_id)}")
-        warnings.warn(f"Status code: {response.status_code}")
-        warnings.warn(f"Reason: {response.reason}")
-        log_failed_game_download(game_id_to_url[game_id], console)
-    else:
-        save_file(response, directory)
-        print('Finished\n')
+    with requests.get(download_url, headers=request_headers, stream=True) as response:
+        if not response.ok:
+            warnings.warn(f"Failed to download game with game id {game_id}, url: {game_id_to_url.get(game_id)}")
+            warnings.warn(f"Status code: {response.status_code}")
+            warnings.warn(f"Reason: {response.reason}")
+            log_failed_game_download(game_id_to_url[game_id], console)
+        else:
+            headers = response.headers
+            content = b''
+            block_size = 1024 * 1024
+            with tqdm(total=get_content_length(headers), unit='MB', unit_scale=True, unit_divisor=1024) as progress_bar:
+                for data in response.iter_content(block_size):
+                    content += data
+                    progress_bar.update(len(data))
+            save_file(headers, content, directory)
+            print('Finished\n')
 
 
 def get_current_time():
