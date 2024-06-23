@@ -7,12 +7,12 @@ import requests
 import re
 import time
 import warnings
-import zipfile
 
 from datetime import datetime
 from enum import Enum
 from py7zr import SevenZipFile
 from tqdm import tqdm
+from zipfile import ZipFile
 
 
 # Enums
@@ -109,12 +109,24 @@ def get_content_length(headers):
 
 def save_7z_file(content, directory):
     with SevenZipFile(io.BytesIO(content), mode='r') as z:
-        z.extractall(directory)
+        file_list = z.getnames()
+        with tqdm(total=len(file_list), desc='Extracting files', unit='files') as progress_bar:
+            progress_bar.update(0)
+            for file in file_list:
+                progress_bar.set_description(f"Extracting: {file}")
+                z.extract(directory, [file])
+                progress_bar.update(1)
 
 
 def save_zip_file(content, directory):
-    with zipfile.ZipFile(io.BytesIO(content)) as z:
-        z.extractall(directory)
+    with ZipFile(io.BytesIO(content)) as z:
+        file_list = z.infolist()
+        with tqdm(total=len(file_list), desc='Extracting files', unit='files') as progress_bar:
+            progress_bar.update(0)
+            for file in file_list:
+                progress_bar.set_description(f"Extracting: {file.filename}")
+                z.extract(file, directory)
+                progress_bar.update(1)
 
 
 def save_file(headers, content, base_directory):
@@ -231,7 +243,7 @@ def download_game(game_id, directory, console):
             headers = response.headers
             content = b''
             block_size = 1024 * 1024
-            with tqdm(total=get_content_length(headers), unit='B', unit_scale=True, unit_divisor=1024) as progress_bar:
+            with tqdm(total=get_content_length(headers), desc='Downloading file', unit='B', unit_scale=True, unit_divisor=1024) as progress_bar:
                 for data in response.iter_content(block_size):
                     content += data
                     progress_bar.update(len(data))
