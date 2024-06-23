@@ -225,7 +225,7 @@ def download_game(game_id, directory, console):
             headers = response.headers
             content = b''
             block_size = 1024 * 1024
-            with tqdm(total=get_content_length(headers), unit='MB', unit_scale=True, unit_divisor=1024) as progress_bar:
+            with tqdm(total=get_content_length(headers), unit='B', unit_scale=True, unit_divisor=1024) as progress_bar:
                 for data in response.iter_content(block_size):
                     content += data
                     progress_bar.update(len(data))
