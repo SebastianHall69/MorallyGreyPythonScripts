@@ -1,8 +1,8 @@
 # Other
 /games
 .idea
-failed_game_downloads*.txt
-cached_game_ids*.json
+/failed
+/cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

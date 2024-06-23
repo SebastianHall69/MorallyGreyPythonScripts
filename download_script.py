@@ -48,7 +48,9 @@ class Header(Enum):
 
 
 # Globals
-game_id_to_url = {}
+GAME_ID_TO_URL = {}
+CACHE_DIRECTORY = 'cache'
+FAILED_DIRECTORY = 'failed'
 
 
 def get_console_from_cli_option(cli_option):
@@ -134,8 +136,12 @@ def create_directory(directory):
         os.makedirs(directory)
 
 
+def get_failed_game_download_directory(console):
+    return os.path.join(FAILED_DIRECTORY, f"failed_game_downloads_{console}.txt")
+
+
 def log_failed_game_download(game_url, console):
-    with open(f"failed_game_downloads_{console}.txt", 'a+') as file:
+    with open(get_failed_game_download_directory(console), 'a+') as file:
         file.write(f"{game_url}\n")
 
 
@@ -183,7 +189,7 @@ def get_game_ids_from_urls(game_urls, console):
             page_html = requests.get(game_url).text
             game_id = re.search(game_id_regex, page_html).group(1)
             game_ids.append(game_id)
-            game_id_to_url[game_id] = game_url
+            GAME_ID_TO_URL[game_id] = game_url
             print(f"game {current_game_num}/{len(game_urls)}\turl: {game_url}\tgame id: {game_id}")
         except Exception as err:
             print(f"FAILURE TO FIND GAME ID FOR game {current_game_num}/{len(game_urls)}, url: {game_url}")
@@ -217,10 +223,10 @@ def download_game(game_id, directory, console):
     time.sleep(5)
     with requests.get(download_url, headers=request_headers, stream=True) as response:
         if not response.ok:
-            warnings.warn(f"Failed to download game with game id {game_id}, url: {game_id_to_url.get(game_id)}")
+            warnings.warn(f"Failed to download game with game id {game_id}, url: {GAME_ID_TO_URL.get(game_id)}")
             warnings.warn(f"Status code: {response.status_code}")
             warnings.warn(f"Reason: {response.reason}")
-            log_failed_game_download(game_id_to_url.get(game_id), console)
+            log_failed_game_download(GAME_ID_TO_URL.get(game_id), console)
         else:
             headers = response.headers
             content = b''
@@ -269,15 +275,15 @@ def filter_game_ids(game_ids, blocked_game_ids, first_game_id):
 
 
 def get_game_id_path(console):
-    return f"cached_game_ids_{console}.json"
+    return os.path.join('cache', f"cached_game_ids_{console}.json")
 
 
 def get_game_id_to_url_path(console):
-    return f"cached_game_id_to_url_{console}.json"
+    return os.path.join('cache', f"cached_game_id_to_url_{console}.json")
 
 
 def get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id):
-    global game_id_to_url
+    global GAME_ID_TO_URL
     game_id_path = get_game_id_path(console)
 
     if load_cached_object(game_id_path) is None:
@@ -285,11 +291,11 @@ def get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_gam
         game_urls = get_game_urls(console, first_letter, last_letter)
         game_ids = get_game_ids_from_urls(game_urls, console)
         cache_object(game_ids, game_id_path)
-        cache_object(game_id_to_url, get_game_id_to_url_path(console))
+        cache_object(GAME_ID_TO_URL, get_game_id_to_url_path(console))
     else:
         print(f"Using cached game ids for {console}")
         game_ids = load_cached_object(game_id_path)
-        game_id_to_url = load_cached_object(get_game_id_to_url_path(console))
+        GAME_ID_TO_URL = load_cached_object(get_game_id_to_url_path(console))
 
     return filter_game_ids(game_ids, blocked_game_ids, first_game_id)
 
@@ -309,8 +315,12 @@ def main(start, end, directory, first_game_id, console):
     download_directory = get_default_directory(console) if directory is None else directory
     blocked_game_ids = ['29']
 
-    # Download games
+    # Setup file locations
     create_directory(download_directory)
+    create_directory(CACHE_DIRECTORY)
+    create_directory(FAILED_DIRECTORY)
+
+    # Download games
     game_ids = get_game_ids(first_letter, last_letter, console, blocked_game_ids, first_game_id)
     download_games(game_ids, download_directory, console)
 
